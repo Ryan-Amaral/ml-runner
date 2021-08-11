@@ -8,6 +8,8 @@ Different branches will be for different experiment sets.
 Some may follow a general template (as in master), others could be completely different. 
 A general template will be followed where possible for efficient reuse.
 
+Each branch should follow a common naming convention `{experiment name}-{experiment subtype}`, for example `2dbiped-tpg`.
+
 ### General Features:
 - A python script for running an experiment.
 - A python requirements file to automatically install dependencies.
