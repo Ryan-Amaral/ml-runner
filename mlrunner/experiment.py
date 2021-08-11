@@ -22,6 +22,7 @@ def separgs_int(option, opt, value, parser):
 parser = OptionParser()
 
 # parameters for running experiment
+parser.add_option("--instance", type="int", dest="instance", default=0)
 parser.add_option("--end_generation", type="int", dest="end_generation", default=500)
 parser.add_option("--episodes", type="int", dest="episodes", default=5)
 parser.add_option("--environment", type="string", dest="environment")
@@ -116,12 +117,29 @@ def run_agent(args):
 Runs the experiment from start to finish.
 """
 def run_experiment():
-    run_name = f"{opts.run_key}-{opts.environment}-{opts.instance}"
-    log_name = "log.txt"
+
+    # log the experiment parameters
+    with open(f"params-run{opts.instance}.txt", "w") as f:
+        f.write(f"end_generation: {str(opts.end_generation)}\n")
+        f.write(f"episodes: {str(opts.episodes)}\n")
+        f.write(f"environment: {str(opts.environment)}\n")
+        f.write(f"frames: {str(opts.frames)}\n")
+        f.write(f"processes: {str(opts.processes)}\n")
+        f.write(f"trainer_checkpoint: {str(opts.trainer_checkpoint)}\n")
+        f.write(f"init_team_pop: {str(opts.init_team_pop)}\n")
+        f.write(f"gap: {str(opts.gap)}\n")
+        f.write(f"init_max_act_prog_size: {str(opts.init_max_act_prog_size)}\n")
+        f.write(f"inst_del_prob: {str(opts.inst_del_prob)}\n")
+        f.write(f"inst_add_prob: {str(opts.inst_add_prob)}\n")
+        f.write(f"inst_swp_prob: {str(opts.inst_swp_prob)}\n")
+        f.write(f"inst_mut_prob: {str(opts.inst_mut_prob)}\n")
+        f.write(f"elitist: {str(opts.elitist)}\n")
+        f.write(f"ops: {str(opts.ops)}\n")
+        f.write(f"rampancy: {str(opts.rampancy)}\n")
 
     # continue old run if applicable
     try:
-        trainer = loadTrainer("trainer.pkl")
+        trainer = loadTrainer(f"trainer-run{opts.instance}.pkl")
     except:
         trainer = None
 
@@ -132,7 +150,7 @@ def run_experiment():
         # create new trainer and log, start at gen 0
         trainer = create_trainer()
         start_gen = 0
-        create_log("log.csv",[
+        create_log(f"log-run{opts.instance}.csv",[
             "gen", "gen-time", "fit-min", "fit-max", "fit-avg", "champ-id",
             "champ-mean", "champ-std", "champ-act-inst"
         ])
@@ -164,7 +182,7 @@ def run_experiment():
 
         # save trainer at this point
         if gen % opts.trainer_checkpoint == 0:
-            trainer.saveToFile(f"trainer-{gen}.pkl")
+            trainer.saveToFile(f"trainer-run{opts.instance}-{gen}.pkl")
 
         # get basic generational stats
         champ_agent = trainer.getEliteAgent(opts.environment)
@@ -173,10 +191,10 @@ def run_experiment():
 
         # evolve and save trainer backup / final trainer
         trainer.evolve(tasks=[opts.environment])
-        trainer.saveToFile(f"trainer.pkl")
+        trainer.saveToFile(f"trainer-run{opts.instance}.pkl")
 
         # log the current generation data
-        update_log("log.csv",[
+        update_log(f"log-run{opts.instance}.csv",[
             gen, gen_time, round(trainer.fitnessStats["min"], 4), 
             round(trainer.fitnessStats["max"], 4), 
             round(trainer.fitnessStats["average"], 4), 
