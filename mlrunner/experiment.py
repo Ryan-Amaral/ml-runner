@@ -3,7 +3,7 @@ from utils import *
 import multiprocessing as mp
 from optparse import OptionParser
 from tpg.trainer import Trainer, loadTrainer
-from tpg.utils import actionInstructionStats
+from tpg.utils import actionInstructionStats, getTeams, getLearners
 import gym
 import time
 from math import sin, pi, cos
@@ -22,15 +22,12 @@ def separgs_int(option, opt, value, parser):
 parser = OptionParser()
 
 # parameters for running experiment
-parser.add_option("--run_key", type="string", dest="run_key", default="2dbiped-gp")
-parser.add_option("--instance", type="int", dest="instance", default=0)
 parser.add_option("--end_generation", type="int", dest="end_generation", default=500)
 parser.add_option("--episodes", type="int", dest="episodes", default=5)
 parser.add_option("--environment", type="string", dest="environment")
 parser.add_option("--frames", type="int", dest="frames", default=1600)
 parser.add_option("--processes", type="int", dest="processes", default=1)
 parser.add_option("--trainer_checkpoint", type="int", dest="trainer_checkpoint", default=100)
-parser.add_option("--max-no-ops", type="int", dest="max_no_ops", default=0)
 
 # parameters for tpg (gp in this experiment)
 parser.add_option("--init_team_pop", type="int", dest="init_team_pop", default=360)
@@ -42,7 +39,7 @@ parser.add_option("--inst_swp_prob", type="float", dest="inst_swp_prob", default
 parser.add_option("--inst_mut_prob", type="float", dest="inst_mut_prob", default=0.5)
 parser.add_option("--elitist", action="store_true", dest="elitist", default=True)
 parser.add_option("--ops", type="string", dest="ops", default="robo")
-parser.add_option('--rampancy', type='string', action='callback', callback=separgs_int, dest='rampancy') # 5,5,5
+parser.add_option("--rampancy", type="string", action="callback", callback=separgs_int, dest="rampancy", default="5,5,5")
 
 (opts, args) = parser.parse_args()
 
@@ -101,9 +98,8 @@ def run_agent(args):
 
         scores.append(score_ep)
 
+        env.close()
         del env
-
-    env.close()
 
     final_score = mean(scores)
     print(f"agent {str(agent.agentNum)} scored: {str(final_score)}")
@@ -131,26 +127,25 @@ def run_experiment():
 
     if trainer is not None:
         # start from previous point
-        start_gen = trainer.gen
+        start_gen = trainer.generation
     else:
         # create new trainer and log, start at gen 0
         trainer = create_trainer()
         start_gen = 0
         create_log("log.csv",[
             "gen", "gen-time", "fit-min", "fit-max", "fit-avg", "champ-id",
-            "champ-mean", "champ-std", "champ-inst"
+            "champ-mean", "champ-std", "champ-act-inst"
         ])
 
     # set up multiprocessing
     man = mp.Manager()
     pool = mp.Pool(processes=opts.processes, maxtasksperchild=1)
-    mp.set_start_method("spawn")
 
     # where the run actually happens
     for gen in range(start_gen, opts.end_generation):
 
         # get all agents to execute for current generation
-        agents = trainer.getAgents(skipTasks=[trainer.environment])
+        agents = trainer.getAgents(skipTasks=[opts.environment])
 
         # multiprocess list to store results
         score_list = man.list(range(len(agents)))
@@ -169,7 +164,7 @@ def run_experiment():
 
         # save trainer at this point
         if gen % opts.trainer_checkpoint == 0:
-            save_run(f"trainer-{gen}.pkl")
+            trainer.saveToFile(f"trainer-{gen}.pkl")
 
         # get basic generational stats
         champ_agent = trainer.getEliteAgent(opts.environment)
@@ -182,12 +177,14 @@ def run_experiment():
 
         # log the current generation data
         update_log("log.csv",[
-            gen, gen_time, trainer.fitnessStats["min"], 
-            trainer.fitnessStats["max"], trainer.fitnessStats["average"], 
-            champ_agent.team.id, champ_agent.team.outcomes["Mean"], 
-            champ_agent.team.outcomes["Std"], insts
+            gen, gen_time, round(trainer.fitnessStats["min"], 4), 
+            round(trainer.fitnessStats["max"], 4), 
+            round(trainer.fitnessStats["average"], 4), 
+            champ_agent.team.id, round(champ_agent.team.outcomes["Mean"], 4),
+            round(champ_agent.team.outcomes["Std"], 4), insts
         ])
 
 # start the experiment
 if __name__ == "__main__":
+    mp.set_start_method("spawn")
     run_experiment()
