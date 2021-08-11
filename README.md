@@ -1,5 +1,7 @@
 # ml-runner
 
+## 2d-Bipedal-Walker-v3 experiments with GP
+
 ### What is it?
 A general framework/codebase for running machine learning experiments. 
 Primarilly evolution based reinforcement learning, but could be used for anything.
