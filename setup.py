@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
     name='mlrunner',
-    version='0.96',
+    version='0.1',
     packages=['mlrunner'],
     install_requires=[], # enter requirements here
     license='GPLv3.0',
