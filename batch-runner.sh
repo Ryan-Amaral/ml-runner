@@ -1,2 +1,3 @@
 # something like this
-tmux new-session -d -s mysesh "cat README.md && tail -f README.md"
+tmux new-session -d -s mysesh
+tmux send-keys -t mysesh:0 "python script.py" Enter
