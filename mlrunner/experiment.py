@@ -6,12 +6,15 @@ from tpg.utils import actionInstructionStats, getTeams, getLearners
 import gym
 import time
 from math import sin, pi, cos
-from numpy import append, mean, std, clip
+from numpy import append, mean, std
 
 """
 Creates a new trainer for this run.
 """
-def create_trainer(environment, init_team_pop, gap, inst_del_prob,
+def create_trainer(environment, init_team_pop, gap, registers,
+        init_max_team_size, max_team_size, init_max_prog_size,
+        learner_del_prob, learner_add_prob, learner_mut_prob, prog_mut_prob,
+        act_mut_prob, atomic_act_prob, inst_del_prob,
         inst_add_prob, inst_swp_prob, inst_mut_prob, elitist, rampancy,
         ops, init_max_act_prog_size):
     # get info about the environment from temp env
@@ -21,7 +24,12 @@ def create_trainer(environment, init_team_pop, gap, inst_del_prob,
     del env
 
     return Trainer(actions=[acts,acts], 
-        teamPopSize=init_team_pop, gap=gap, 
+        teamPopSize=init_team_pop, gap=gap, nRegisters=registers,
+        initMaxTeamSize=init_max_team_size, maxTeamSize=max_team_size,
+        initMaxProgSize=init_max_prog_size, pLrnDel=learner_del_prob,
+        pLrnAdd=learner_add_prob, pLrnMut=learner_mut_prob,
+        pProgMut=prog_mut_prob, pActMut=act_mut_prob,
+        pActAtom=atomic_act_prob,
         inputSize=inpts,
         pInstDel=inst_del_prob, pInstAdd=inst_add_prob,
         pInstMut=inst_swp_prob, pInstSwp=inst_mut_prob,
@@ -84,10 +92,13 @@ Runs the experiment from start to finish.
 """
 def run_experiment(instance=0, end_generation=500, episodes=5, 
         environment="BipedalWalker-v3", frames=1600, processes=1,
-        trainer_checkpoint=100, init_team_pop=360, gap=0.5,
+        trainer_checkpoint=100, init_team_pop=360, gap=0.5, registers=8,
+        init_max_team_size=2, max_team_size=4, init_max_prog_size=128,
+        learner_del_prob=0.3, learner_add_prob=0.3, learner_mut_prob=0.7,
+        prog_mut_prob=0.5, act_mut_prob=0.7, atomic_act_prob=0.8,
         init_max_act_prog_size=128, inst_del_prob=0.5, inst_add_prob=0.5,
         inst_swp_prob=0.5, inst_mut_prob=0.5, elitist=True, ops="robo",
-        rampancy=(5,5,5)):
+        rampancy=(5,5,5), hh_remove_gen=100, fail_gens=100):
 
     if __name__ == "__main__":
         mp.set_start_method("spawn")
@@ -102,6 +113,16 @@ def run_experiment(instance=0, end_generation=500, episodes=5,
         f.write(f"trainer_checkpoint: {str(trainer_checkpoint)}\n")
         f.write(f"init_team_pop: {str(init_team_pop)}\n")
         f.write(f"gap: {str(gap)}\n")
+        f.write(f"registers: {str()}\n")
+        f.write(f"init_max_team_size: {str()}\n")
+        f.write(f"max_team_size: {str()}\n")
+        f.write(f"init_max_prog_size: {str()}\n")
+        f.write(f"learner_del_prob: {str()}\n")
+        f.write(f"learner_add_prob: {str()}\n")
+        f.write(f"learner_mut_prob: {str()}\n")
+        f.write(f"prog_mut_prob: {str()}\n")
+        f.write(f"act_mut_prob: {str()}\n")
+        f.write(f"atomic_act_prob: {str()}\n")
         f.write(f"init_max_act_prog_size: {str(init_max_act_prog_size)}\n")
         f.write(f"inst_del_prob: {str(inst_del_prob)}\n")
         f.write(f"inst_add_prob: {str(inst_add_prob)}\n")
@@ -110,6 +131,8 @@ def run_experiment(instance=0, end_generation=500, episodes=5,
         f.write(f"elitist: {str(elitist)}\n")
         f.write(f"ops: {str(ops)}\n")
         f.write(f"rampancy: {str(rampancy)}\n")
+        f.write(f"hh_remove_gen: {str()}\n")
+        f.write(f"fail_gens: {str()}\n")
 
     # continue old run if applicable
     try:
@@ -122,13 +145,21 @@ def run_experiment(instance=0, end_generation=500, episodes=5,
         start_gen = trainer.generation
     else:
         # create new trainer and log, start at gen 0
-        trainer = create_trainer(environment, init_team_pop, gap, inst_del_prob,
+        trainer = create_trainer(environment, init_team_pop, gap, registers,
+        init_max_team_size, max_team_size, init_max_prog_size,
+        learner_del_prob, learner_add_prob, learner_mut_prob, prog_mut_prob,
+        act_mut_prob, atomic_act_prob, inst_del_prob,
         inst_add_prob, inst_swp_prob, inst_mut_prob, elitist, rampancy,
         ops, init_max_act_prog_size)
+
         start_gen = 0
         create_log(f"log-run{instance}.csv",[
             "gen", "gen-time", "fit-min", "fit-max", "fit-avg", "gen-max",
-            "champ-id", "champ-mean", "champ-std", "champ-act-inst"
+            "champ-id", "champ-mean", "champ-std", "champ-teams",
+            "champ-learners", "champ-inst", "champ-act-inst", "champ-real-acts",
+            "pop-roots", "pop-teams", "pop-learners", "hh-learners-rem",
+            "hh-teams-affected", "b-teams", "b-learners", 
+            "b-teams-new", "b-learners-new"
         ])
 
     # set up multiprocessing

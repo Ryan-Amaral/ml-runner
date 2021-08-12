@@ -4,7 +4,7 @@ setup(
     name='mlrunner',
     version='0.1',
     packages=['mlrunner'],
-    install_requires=["PyTPG@git+https://github.com/Ryan-Amaral/PyTPG.git@v0.9.4.2#egg=PyTPG",
+    install_requires=["PyTPG@git+https://github.com/Ryan-Amaral/PyTPG.git@v0.9.4.1#egg=PyTPG",
                       "numpy",
                       "gym",
                       "box2d-py"], # enter requirements here
