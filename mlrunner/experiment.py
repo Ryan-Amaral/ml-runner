@@ -2,7 +2,7 @@ from mlrunner.utils import *
 # include whatever other imports are needed (e.g. the ml algorithm, environment)
 import multiprocessing as mp
 from tpg.trainer import Trainer, loadTrainer
-from tpg.utils import actionInstructionStats, getTeams, getLearners
+from tpg.utils import learnerInstructionStats, actionInstructionStats, getTeams, getLearners
 import gym
 import time
 from math import sin, pi, cos
@@ -113,16 +113,16 @@ def run_experiment(instance=0, end_generation=500, episodes=5,
         f.write(f"trainer_checkpoint: {str(trainer_checkpoint)}\n")
         f.write(f"init_team_pop: {str(init_team_pop)}\n")
         f.write(f"gap: {str(gap)}\n")
-        f.write(f"registers: {str()}\n")
-        f.write(f"init_max_team_size: {str()}\n")
-        f.write(f"max_team_size: {str()}\n")
-        f.write(f"init_max_prog_size: {str()}\n")
-        f.write(f"learner_del_prob: {str()}\n")
-        f.write(f"learner_add_prob: {str()}\n")
-        f.write(f"learner_mut_prob: {str()}\n")
-        f.write(f"prog_mut_prob: {str()}\n")
-        f.write(f"act_mut_prob: {str()}\n")
-        f.write(f"atomic_act_prob: {str()}\n")
+        f.write(f"registers: {str(registers)}\n")
+        f.write(f"init_max_team_size: {str(init_max_team_size)}\n")
+        f.write(f"max_team_size: {str(max_team_size)}\n")
+        f.write(f"init_max_prog_size: {str(init_max_prog_size)}\n")
+        f.write(f"learner_del_prob: {str(learner_del_prob)}\n")
+        f.write(f"learner_add_prob: {str(learner_add_prob)}\n")
+        f.write(f"learner_mut_prob: {str(learner_mut_prob)}\n")
+        f.write(f"prog_mut_prob: {str(prog_mut_prob)}\n")
+        f.write(f"act_mut_prob: {str(act_mut_prob)}\n")
+        f.write(f"atomic_act_prob: {str(atomic_act_prob)}\n")
         f.write(f"init_max_act_prog_size: {str(init_max_act_prog_size)}\n")
         f.write(f"inst_del_prob: {str(inst_del_prob)}\n")
         f.write(f"inst_add_prob: {str(inst_add_prob)}\n")
@@ -131,8 +131,8 @@ def run_experiment(instance=0, end_generation=500, episodes=5,
         f.write(f"elitist: {str(elitist)}\n")
         f.write(f"ops: {str(ops)}\n")
         f.write(f"rampancy: {str(rampancy)}\n")
-        f.write(f"hh_remove_gen: {str()}\n")
-        f.write(f"fail_gens: {str()}\n")
+        f.write(f"hh_remove_gen: {str(hh_remove_gen)}\n")
+        f.write(f"fail_gens: {str(fail_gens)}\n")
 
     # continue old run if applicable
     try:
@@ -156,7 +156,7 @@ def run_experiment(instance=0, end_generation=500, episodes=5,
         create_log(f"log-run{instance}.csv",[
             "gen", "gen-time", "fit-min", "fit-max", "fit-avg", "gen-max",
             "champ-id", "champ-mean", "champ-std", "champ-teams",
-            "champ-learners", "champ-inst", "champ-act-inst", "champ-real-acts",
+            "champ-learners", "champ-bid-inst", "champ-act-inst", "champ-real-acts",
             "pop-roots", "pop-teams", "pop-learners", "hh-learners-rem",
             "hh-teams-affected", "b-teams", "b-learners", 
             "b-teams-new", "b-learners-new"
@@ -193,8 +193,24 @@ def run_experiment(instance=0, end_generation=500, episodes=5,
 
         # get basic generational stats
         champ_agent = trainer.getEliteAgent(environment)
-        insts = actionInstructionStats([champ_agent.team.learners[0]], 
+        champ_teams = getTeams(champ_agent.team)
+        champ_learners = getLearners(champ_agent.team)
+        n_champ_bid_insts = learnerInstructionStats(champ_learners, 
                                     trainer.operations)["overall"]["total"]
+        n_champ_act_insts = actionInstructionStats(champ_learners, 
+                                    trainer.operations)["overall"]["total"]
+        n_champ_real_acts = len([l for l in champ_learners if l.isActionAtomic()])
+        n_pop_roots = len(trainer.rootTeams)
+        n_pop_teams = len(trainer.teams)
+        n_pop_learners = len(trainer.learners)
+
+        # fill in later when introduced in TPG+SBB
+        hh_learners_rem = 0
+        hh_teams_affected = 0
+        b_teams = 0
+        b_learners = 0
+        b_teams_new = 0
+        b_learners_new = 0
 
         # evolve and save trainer backup / final trainer
         trainer.evolve(tasks=[environment])
@@ -212,5 +228,8 @@ def run_experiment(instance=0, end_generation=500, episodes=5,
             round(trainer.fitnessStats["max"], 4), 
             round(trainer.fitnessStats["average"], 4), round(max_this_gen, 4),
             champ_agent.team.id, round(champ_agent.team.outcomes["Mean"], 4),
-            round(champ_agent.team.outcomes["Std"], 4), insts
+            round(champ_agent.team.outcomes["Std"], 4), len(champ_teams), 
+            len(champ_learners), n_champ_bid_insts, n_champ_act_insts, n_champ_real_acts,
+            n_pop_roots, n_pop_teams, n_pop_learners, hh_learners_rem, 
+            hh_teams_affected, b_teams, b_learners, b_teams_new, b_learners_new
         ])
