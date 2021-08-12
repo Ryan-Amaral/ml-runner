@@ -1,7 +1,6 @@
-from utils import *
+from mlrunner.utils import *
 # include whatever other imports are needed (e.g. the ml algorithm, environment)
 import multiprocessing as mp
-from optparse import OptionParser
 from tpg.trainer import Trainer, loadTrainer
 from tpg.utils import actionInstructionStats, getTeams, getLearners
 import gym
@@ -10,57 +9,24 @@ from math import sin, pi, cos
 from numpy import append, mean, std, clip
 
 """
-Utility function to parse int array input parameters.
-"""
-def separgs_int(option, opt, value, parser):
-    ints = []
-    for value in value.split(','):
-        ints.append(int(value))
-
-    setattr(parser.values, option.dest, ints)
-
-parser = OptionParser()
-
-# parameters for running experiment
-parser.add_option("--instance", type="int", dest="instance", default=0)
-parser.add_option("--end_generation", type="int", dest="end_generation", default=500)
-parser.add_option("--episodes", type="int", dest="episodes", default=5)
-parser.add_option("--environment", type="string", dest="environment")
-parser.add_option("--frames", type="int", dest="frames", default=1600)
-parser.add_option("--processes", type="int", dest="processes", default=1)
-parser.add_option("--trainer_checkpoint", type="int", dest="trainer_checkpoint", default=100)
-
-# parameters for tpg (gp in this experiment)
-parser.add_option("--init_team_pop", type="int", dest="init_team_pop", default=360)
-parser.add_option("--gap", type="float", dest="gap", default=0.5)
-parser.add_option("--init_max_act_prog_size", type="int", dest="init_max_act_prog_size", default=128)
-parser.add_option("--inst_del_prob", type="float", dest="inst_del_prob", default=0.5)
-parser.add_option("--inst_add_prob", type="float", dest="inst_add_prob", default=0.5)
-parser.add_option("--inst_swp_prob", type="float", dest="inst_swp_prob", default=0.5)
-parser.add_option("--inst_mut_prob", type="float", dest="inst_mut_prob", default=0.5)
-parser.add_option("--elitist", action="store_true", dest="elitist", default=True)
-parser.add_option("--ops", type="string", dest="ops", default="robo")
-parser.add_option("--rampancy", type="string", action="callback", callback=separgs_int, dest="rampancy", default="5,5,5")
-
-(opts, args) = parser.parse_args()
-
-"""
 Creates a new trainer for this run.
 """
-def create_trainer():
+def create_trainer(environment, init_team_pop, gap, inst_del_prob,
+        inst_add_prob, inst_swp_prob, inst_mut_prob, elitist, rampancy,
+        ops, init_max_act_prog_size):
     # get info about the environment from temp env
-    env = gym.make(opts.environment)
+    env = gym.make(environment)
     acts = env.action_space.shape[0]
     inpts = env.observation_space.shape[0] + 6 # plus 6 for sin+cos inputs
     del env
 
     return Trainer(actions=[acts,acts], 
-        teamPopSize=opts.init_team_pop, gap=opts.gap, 
+        teamPopSize=init_team_pop, gap=gap, 
         inputSize=inpts,
-        pInstDel=opts.inst_del_prob, pInstAdd=opts.inst_add_prob,
-        pInstMut=opts.inst_swp_prob, pInstSwp=opts.inst_mut_prob,
-        doElites=opts.elitist, rampancy=opts.rampancy,
-        operationSet=opts.ops, initMaxActProgSize=opts.init_max_act_prog_size,
+        pInstDel=inst_del_prob, pInstAdd=inst_add_prob,
+        pInstMut=inst_swp_prob, pInstSwp=inst_mut_prob,
+        doElites=elitist, rampancy=rampancy,
+        operationSet=ops, initMaxActProgSize=init_max_act_prog_size,
         nActRegisters=acts+4)
 
 def run_agent(args):
@@ -116,30 +82,38 @@ def run_agent(args):
 """
 Runs the experiment from start to finish.
 """
-def run_experiment():
+def run_experiment(instance=0, end_generation=500, episodes=5, 
+        environment="BipedalWalker-v3", frames=1600, processes=1,
+        trainer_checkpoint=100, init_team_pop=360, gap=0.5,
+        init_max_act_prog_size=128, inst_del_prob=0.5, inst_add_prob=0.5,
+        inst_swp_prob=0.5, inst_mut_prob=0.5, elitist=True, ops="robo",
+        rampancy=(5,5,5)):
+
+    if __name__ == "__main__":
+        mp.set_start_method("spawn")
 
     # log the experiment parameters
-    with open(f"params-run{opts.instance}.txt", "w") as f:
-        f.write(f"end_generation: {str(opts.end_generation)}\n")
-        f.write(f"episodes: {str(opts.episodes)}\n")
-        f.write(f"environment: {str(opts.environment)}\n")
-        f.write(f"frames: {str(opts.frames)}\n")
-        f.write(f"processes: {str(opts.processes)}\n")
-        f.write(f"trainer_checkpoint: {str(opts.trainer_checkpoint)}\n")
-        f.write(f"init_team_pop: {str(opts.init_team_pop)}\n")
-        f.write(f"gap: {str(opts.gap)}\n")
-        f.write(f"init_max_act_prog_size: {str(opts.init_max_act_prog_size)}\n")
-        f.write(f"inst_del_prob: {str(opts.inst_del_prob)}\n")
-        f.write(f"inst_add_prob: {str(opts.inst_add_prob)}\n")
-        f.write(f"inst_swp_prob: {str(opts.inst_swp_prob)}\n")
-        f.write(f"inst_mut_prob: {str(opts.inst_mut_prob)}\n")
-        f.write(f"elitist: {str(opts.elitist)}\n")
-        f.write(f"ops: {str(opts.ops)}\n")
-        f.write(f"rampancy: {str(opts.rampancy)}\n")
+    with open(f"params-run{instance}.txt", "w") as f:
+        f.write(f"end_generation: {str(end_generation)}\n")
+        f.write(f"episodes: {str(episodes)}\n")
+        f.write(f"environment: {str(environment)}\n")
+        f.write(f"frames: {str(frames)}\n")
+        f.write(f"processes: {str(processes)}\n")
+        f.write(f"trainer_checkpoint: {str(trainer_checkpoint)}\n")
+        f.write(f"init_team_pop: {str(init_team_pop)}\n")
+        f.write(f"gap: {str(gap)}\n")
+        f.write(f"init_max_act_prog_size: {str(init_max_act_prog_size)}\n")
+        f.write(f"inst_del_prob: {str(inst_del_prob)}\n")
+        f.write(f"inst_add_prob: {str(inst_add_prob)}\n")
+        f.write(f"inst_swp_prob: {str(inst_swp_prob)}\n")
+        f.write(f"inst_mut_prob: {str(inst_mut_prob)}\n")
+        f.write(f"elitist: {str(elitist)}\n")
+        f.write(f"ops: {str(ops)}\n")
+        f.write(f"rampancy: {str(rampancy)}\n")
 
     # continue old run if applicable
     try:
-        trainer = loadTrainer(f"trainer-run{opts.instance}.pkl")
+        trainer = loadTrainer(f"trainer-run{instance}.pkl")
     except:
         trainer = None
 
@@ -148,22 +122,24 @@ def run_experiment():
         start_gen = trainer.generation
     else:
         # create new trainer and log, start at gen 0
-        trainer = create_trainer()
+        trainer = create_trainer(environment, init_team_pop, gap, inst_del_prob,
+        inst_add_prob, inst_swp_prob, inst_mut_prob, elitist, rampancy,
+        ops, init_max_act_prog_size)
         start_gen = 0
-        create_log(f"log-run{opts.instance}.csv",[
-            "gen", "gen-time", "fit-min", "fit-max", "fit-avg", "champ-id",
-            "champ-mean", "champ-std", "champ-act-inst"
+        create_log(f"log-run{instance}.csv",[
+            "gen", "gen-time", "fit-min", "fit-max", "fit-avg", "gen-max",
+            "champ-id", "champ-mean", "champ-std", "champ-act-inst"
         ])
 
     # set up multiprocessing
     man = mp.Manager()
-    pool = mp.Pool(processes=opts.processes, maxtasksperchild=1)
+    pool = mp.Pool(processes=processes, maxtasksperchild=1)
 
     # where the run actually happens
-    for gen in range(start_gen, opts.end_generation):
+    for gen in range(start_gen, end_generation):
 
         # get all agents to execute for current generation
-        agents = trainer.getAgents(skipTasks=[opts.environment])
+        agents = trainer.getAgents(skipTasks=[environment])
 
         # multiprocess list to store results
         score_list = man.list(range(len(agents)))
@@ -171,8 +147,8 @@ def run_experiment():
         gen_start_time = time.time()
 
         pool.map(run_agent,
-            [(agent, opts.environment, score_list, opts.episodes, 
-                    opts.frames, i)
+            [(agent, environment, score_list, episodes, 
+                    frames, i)
                 for i, agent in enumerate(agents)])
 
         gen_time = int(time.time() - gen_start_time)
@@ -181,28 +157,29 @@ def run_experiment():
         trainer.applyScores(score_list)
 
         # save trainer at this point
-        if gen % opts.trainer_checkpoint == 0:
-            trainer.saveToFile(f"trainer-run{opts.instance}-{gen}.pkl")
+        if gen % trainer_checkpoint == 0:
+            trainer.saveToFile(f"trainer-run{instance}-{gen}.pkl")
 
         # get basic generational stats
-        champ_agent = trainer.getEliteAgent(opts.environment)
+        champ_agent = trainer.getEliteAgent(environment)
         insts = actionInstructionStats([champ_agent.team.learners[0]], 
                                     trainer.operations)["overall"]["total"]
 
         # evolve and save trainer backup / final trainer
-        trainer.evolve(tasks=[opts.environment])
-        trainer.saveToFile(f"trainer-run{opts.instance}.pkl")
+        trainer.evolve(tasks=[environment])
+        trainer.saveToFile(f"trainer-run{instance}.pkl")
+
+        # find max fitness obtained this generation
+        max_this_gen = -99999
+        for s in score_list:
+            if s[1]["Mean"] > max_this_gen:
+                max_this_gen = s[1]["Mean"]
 
         # log the current generation data
-        update_log(f"log-run{opts.instance}.csv",[
+        update_log(f"log-run{instance}.csv",[
             gen, gen_time, round(trainer.fitnessStats["min"], 4), 
             round(trainer.fitnessStats["max"], 4), 
-            round(trainer.fitnessStats["average"], 4), 
+            round(trainer.fitnessStats["average"], 4), round(max_this_gen, 4),
             champ_agent.team.id, round(champ_agent.team.outcomes["Mean"], 4),
             round(champ_agent.team.outcomes["Std"], 4), insts
         ])
-
-# start the experiment
-if __name__ == "__main__":
-    mp.set_start_method("spawn")
-    run_experiment()
