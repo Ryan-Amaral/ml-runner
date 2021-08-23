@@ -98,7 +98,8 @@ def run_experiment(instance=0, end_generation=500, episodes=5,
         prog_mut_prob=0.5, act_mut_prob=0.7, atomic_act_prob=0.8,
         init_max_act_prog_size=128, inst_del_prob=0.5, inst_add_prob=0.5,
         inst_swp_prob=0.5, inst_mut_prob=0.5, elitist=True, ops="robo",
-        rampancy=(5,5,5), hh_remove_gen=100, fail_gens=100):
+        rampancy=(5,5,5), hh_remove_gen=100, fail_gens=100, sbb_gens=500,
+        partial_start=False, sbb_n=20):
 
     if __name__ == "__main__":
         mp.set_start_method("spawn")
@@ -133,6 +134,9 @@ def run_experiment(instance=0, end_generation=500, episodes=5,
         f.write(f"rampancy: {str(rampancy)}\n")
         f.write(f"hh_remove_gen: {str(hh_remove_gen)}\n")
         f.write(f"fail_gens: {str(fail_gens)}\n")
+        f.write(f"sbb_gens: {str(sbb_gens)}\n")
+        f.write(f"partial_start: {str(partial_start)}\n")
+        f.write(f"sbb_n: {str(sbb_n)}\n")
 
     # continue old run if applicable
     try:
@@ -152,6 +156,12 @@ def run_experiment(instance=0, end_generation=500, episodes=5,
         inst_add_prob, inst_swp_prob, inst_mut_prob, elitist, rampancy,
         ops, init_max_act_prog_size)
 
+        trainer.no_improvements = 0
+        trainer.cur_max = -99999
+        trainer.last_b_gen = 0
+        trainer.total_gens = 0
+        trainer.gen_b = 0
+
         start_gen = 0
         create_log(f"log-run{instance}.csv",[
             "gen", "gen-time", "fit-min", "fit-max", "fit-avg", "gen-max",
@@ -162,12 +172,146 @@ def run_experiment(instance=0, end_generation=500, episodes=5,
             "b-teams-new", "b-learners-new"
         ])
 
+        create_log(f"log-b-run{instance}.csv",[
+            "gen", "gen-b", "gen-time", "fit-min", "fit-max", "fit-avg", "gen-max",
+            "champ-id", "champ-mean", "champ-std", "champ-teams", 
+            "champ-learners", "champ-bid-inst", 
+            "champ-act-inst", "champ-real-acts",
+            "pop-roots", "pop-teams", "pop-learners"
+        ])
+
     # set up multiprocessing
     man = mp.Manager()
     pool = mp.Pool(processes=processes, maxtasksperchild=1)
 
     # where the run actually happens
     for gen in range(start_gen, end_generation):
+
+        """
+        Run SBB/B population here.
+        """
+        if trainer.no_improvements >= fail_gens or gen == 0:
+            trainer.last_b_gen = gen
+
+            # check for existing run
+            if trainer.gen_b > 0:
+                # load existing
+                trainer_b = loadTrainer(f"trainer-b-run{instance}.pkl")
+                trainer_b.configFunctions()
+            else:
+                # start new
+                trainer_b = create_trainer(environment, init_team_pop, gap, registers,
+                    init_max_team_size, max_team_size, init_max_prog_size,
+                    learner_del_prob, learner_add_prob, learner_mut_prob, prog_mut_prob,
+                    act_mut_prob, 1.0, inst_del_prob,
+                    inst_add_prob, inst_swp_prob, inst_mut_prob, elitist, rampancy,
+                    ops, init_max_act_prog_size)
+
+                trainer_b.no_improvements = 0
+                trainer_b.old_max = -99999
+
+
+            # evolve the sbb/b trainer
+            for gen_b in range(trainer_b.generation, sbb_gens):
+                agents = trainer_b.getAgents(skipTasks=[environment])
+
+                score_list = man.list(range(len(agents)))
+                gen_start_time = time.time()
+                pool.map(run_agent,
+                    [(agent, environment, score_list, episodes, frames, i)
+                        for i, agent in enumerate(agents)])
+                gen_time = int(time.time() - gen_start_time)
+                trainer_b.applyScores(score_list)
+
+                max_score = trainer_b.getEliteAgent(task=environment).team.outcomes[environment]
+
+                trainer_b.evolve(tasks=[environment])
+
+                # check if improvements
+                if max_score > trainer_b.old_max:
+                    trainer_b.old_max = max_score
+                    trainer_b.no_improvements = 0
+                else:
+                    trainer_b.no_improvements += 1
+                    if trainer_b.no_improvements > fail_gens:
+                        break
+
+                # get basic generational stats
+                champ_agent = trainer_b.getEliteAgent(environment)
+                champ_teams = getTeams(champ_agent.team)
+                champ_learners = getLearners(champ_agent.team)
+                n_champ_bid_insts = learnerInstructionStats(champ_learners, 
+                                            trainer_b.operations)["overall"]["total"]
+                n_champ_act_insts = actionInstructionStats(champ_learners, 
+                                            trainer_b.operations)["overall"]["total"]
+                n_champ_real_acts = len([l for l in champ_learners if l.isActionAtomic()])
+                n_pop_roots = len(trainer_b.rootTeams)
+                n_pop_teams = len(trainer_b.teams)
+                n_pop_learners = len(trainer_b.learners)
+
+                # find max fitness obtained this generation
+                max_this_gen = -99999
+                for s in score_list:
+                    if s[1]["Mean"] > max_this_gen:
+                        max_this_gen = s[1]["Mean"]
+
+                # log the current generation data
+                update_log(f"log-b-run{instance}.csv",[
+                    gen, gen_b, gen_time, round(trainer_b.fitnessStats["min"], 4), 
+                    round(trainer_b.fitnessStats["max"], 4), 
+                    round(trainer_b.fitnessStats["average"], 4), round(max_this_gen, 4),
+                    champ_agent.team.id, round(champ_agent.team.outcomes["Mean"], 4),
+                    round(champ_agent.team.outcomes["Std"], 4), len(champ_teams), 
+                    len(champ_learners), n_champ_bid_insts, n_champ_act_insts, n_champ_real_acts,
+                    n_pop_roots, n_pop_teams, n_pop_learners
+                ])
+
+                # save every gen
+                trainer_b.saveToFile(f"trainer-b-run{instance}.pkl")
+                trainer.gen_b = trainer_b.generation
+                trainer.saveToFile(f"trainer-run{instance}.pkl")
+
+            # mark pop b individuals
+            for i in range(len(trainer_b.teams)):
+                trainer_b.teams[i].id2 = f"b_t_{trainer.generation}_{trainer_b.generation}"
+            for i in range(len(trainer_b.learners)):
+                trainer_b.learners[i].id2 = f"b_l_{trainer.generation}_{trainer_b.generation}"
+
+            # save top few teams per start state
+            trainer.b_teams = []
+            top20 = trainer_b.getAgents(sortTasks=[environment])[:sbb_n]
+            for agent in top20:
+                if agent.team not in trainer.b_teams:
+                    trainer.b_teams.append(agent.team)
+            
+            # reset no_improvements tracker so no immedate pop b / SBB repeat
+            trainer.no_improvements = 0
+
+        # reset tracker for generation of pop b
+        trainer.gen_b = 0
+        trainer.configFunctions()
+
+        """
+        Regular TPG evolution.
+        """
+
+        # do hitchiker removal when past gen 0 on certain generations
+        if gen % hh_remove_gen == 0 and gen > 0:
+
+            # obtain team learner data
+            teams, learners_visited = get_team_learner_visits(trainer.getAgents(), 
+                environment, frames, trainer.teams, trainer.learners)
+
+            # remove hitchhikers
+            learners_removed_tmp, teams_affected_tmp = trainer.removeHitchhikers(
+                teams, learners_visited)
+            learners_removed = len(learners_removed_tmp)
+            teams_affected = len(teams_affected_tmp)
+
+        else:
+            learners_removed = -1
+            teams_affected = -1
+
 
         # get all agents to execute for current generation
         agents = trainer.getAgents(skipTasks=[environment])
@@ -178,8 +322,7 @@ def run_experiment(instance=0, end_generation=500, episodes=5,
         gen_start_time = time.time()
 
         pool.map(run_agent,
-            [(agent, environment, score_list, episodes, 
-                    frames, i)
+            [(agent, environment, score_list, episodes, frames, i)
                 for i, agent in enumerate(agents)])
 
         gen_time = int(time.time() - gen_start_time)
@@ -204,16 +347,32 @@ def run_experiment(instance=0, end_generation=500, episodes=5,
         n_pop_teams = len(trainer.teams)
         n_pop_learners = len(trainer.learners)
 
-        # fill in later when introduced in TPG+SBB
-        hh_learners_rem = 0
-        hh_teams_affected = 0
-        b_teams = 0
-        b_learners = 0
-        b_teams_new = 0
-        b_learners_new = 0
+        # find all from b pop
+        n_b_teams = 0
+        n_b_learners = 0
+        n_b_teams_new = 0
+        n_b_learners_new = 0
+        for t in trainer.teams:
+            try:
+                tmp = t.id2
+                n_b_teams += 1
+                if int(tmp.split("_")[2]) == trainer.last_b_gen:
+                    n_b_teams_new += 1
+            except:
+                pass
+
+        for l in trainer.learners:
+            try:
+                tmp = l.id2
+                n_b_learners += 1
+                if int(tmp.split("_")[2]) == trainer.last_b_gen:
+                    n_b_learners_new += 1
+            except:
+                pass
+
 
         # evolve and save trainer backup / final trainer
-        trainer.evolve(tasks=[environment])
+        trainer.evolve(tasks=[environment], extraTeams=trainer.b_teams)
         trainer.saveToFile(f"trainer-run{instance}.pkl")
 
         # find max fitness obtained this generation
@@ -230,6 +389,89 @@ def run_experiment(instance=0, end_generation=500, episodes=5,
             champ_agent.team.id, round(champ_agent.team.outcomes["Mean"], 4),
             round(champ_agent.team.outcomes["Std"], 4), len(champ_teams), 
             len(champ_learners), n_champ_bid_insts, n_champ_act_insts, n_champ_real_acts,
-            n_pop_roots, n_pop_teams, n_pop_learners, hh_learners_rem, 
-            hh_teams_affected, b_teams, b_learners, b_teams_new, b_learners_new
+            n_pop_roots, n_pop_teams, n_pop_learners, learners_removed, 
+            teams_affected, n_b_teams, n_b_learners, n_b_teams_new, n_b_learners_new
         ])
+
+        # break from total SBB and TPG generations
+        trainer.total_gens += 1
+        if trainer.total_gens == end_generation:
+            break
+
+'''
+Traces path taken by all agents to find team learner visits, which is returned.
+'''
+def get_team_learner_visits(agents, env_name, frames, teams, learners):
+
+    env = gym.make(env_name)
+    team_learner_visits_ids = {}
+
+    print("Path tracing for team learner visits.")
+
+    agent_i = 0
+
+    for agent in agents:
+
+        print(f"Tracing agent # {agent_i} out of {len(agents)}")
+        agent_i += 1
+
+        agent.configFunctionsSelf()
+        agent.zeroRegisters()
+
+        state = env.reset()
+        score = 0
+
+        for i in range(frames):
+
+            state = append(state, [2*sin(0.2*pi*i), 2*cos(0.2*pi*i),
+                                2*sin(0.1*pi*i), 2*cos(0.1*pi*i),
+                                2*sin(0.05*pi*i), 2*cos(0.05*pi*i)])
+
+            trace = {}
+        
+            act = agent.act(state, path_trace=trace)[1]
+
+            # feedback from env
+            state, _, is_done, _ = env.step(act)
+
+            # save learners visited per team
+            for path_seg in trace["path"]:
+                # create new list if team not visited yet
+                if path_seg["team_id"] not in team_learner_visits_ids:
+                    team_learner_visits_ids[path_seg["team_id"]] = []
+                # add new learners to list of learners this team visited
+                if path_seg["top_learner"] not in team_learner_visits_ids[path_seg["team_id"]]:
+                    team_learner_visits_ids[path_seg["team_id"]].append(path_seg["top_learner"])
+
+            if is_done:
+                break # end early if losing state
+
+    env.close()
+
+    return get_team_learner_visits_objects(team_learner_visits_ids, teams, learners)
+
+"""
+Recreate team learner visits structure but with objects instead of ids.
+"""
+def get_team_learner_visits_objects(team_learner_visits_ids, teams, learners):
+
+    team_learner_visits = {}
+    teams_final = []
+    learners_visited = []
+
+    for team_id in team_learner_visits_ids.keys():
+        print("checking...")
+        #[print(t.id, "==", team_id, "->", str(t.id)==str(team_id)) for t in teams]
+        team = [t for t in teams if str(t.id) == str(team_id)][0]
+
+        # add the team into the dict
+        teams_final.append(team)
+        learners_visited.append([])
+
+        # add team's visited learners to dict for that team
+        for learner_id in team_learner_visits_ids[team_id]:
+            learner = [l for l in learners if str(l.id) == str(learner_id)][0]
+
+            learners_visited[-1].append(learner)
+
+    return teams_final, learners_visited
