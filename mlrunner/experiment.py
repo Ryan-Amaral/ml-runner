@@ -45,46 +45,51 @@ def run_agent(args):
     frames = args[4] # frames to play for
     agent_num = args[5] # index to store results in list
 
-    agent.configFunctionsSelf()
-    scores = []
+    try:
 
-    for ep in range(episodes): # episode loop
+        agent.configFunctionsSelf()
+        scores = []
 
-        # create new env each time (restart doesn't work well)
-        env = gym.make(env_name)
-        state = env.reset()
-        score_ep = 0
-        agent.zeroRegisters()
+        for ep in range(episodes): # episode loop
 
-        for i in range(frames): # frame loop
+            # create new env each time (restart doesn't work well)
+            env = gym.make(env_name)
+            state = env.reset()
+            score_ep = 0
+            agent.zeroRegisters()
 
-            state = append(state, [2*sin(0.2*pi*i), 2*cos(0.2*pi*i),
-                               2*sin(0.1*pi*i), 2*cos(0.1*pi*i),
-                               2*sin(0.05*pi*i), 2*cos(0.05*pi*i)])
+            for i in range(frames): # frame loop
 
-            act = agent.act(state)[1]
+                state = append(state, [2*sin(0.2*pi*i), 2*cos(0.2*pi*i),
+                                2*sin(0.1*pi*i), 2*cos(0.1*pi*i),
+                                2*sin(0.05*pi*i), 2*cos(0.05*pi*i)])
 
-            # feedback from env
-            state, reward, is_done, _ = env.step(act)
+                act = agent.act(state)[1]
 
-            score_ep += reward # accumulate reward in score
-            if is_done:
-                break # end early if losing state
+                # feedback from env
+                state, reward, is_done, _ = env.step(act)
 
-        scores.append(score_ep)
+                score_ep += reward # accumulate reward in score
+                if is_done:
+                    break # end early if losing state
 
-        env.close()
-        del env
+            scores.append(score_ep)
 
-    final_score = mean(scores)
-    print(f"agent {str(agent.agentNum)} scored: {str(final_score)}")
+            env.close()
+            del env
 
-    agent.reward(final_score, env_name)
-    agent.reward(scores, "Scores")
-    agent.reward(final_score, "Mean")
-    agent.reward(std(scores), "Std")
+        final_score = mean(scores)
+        print(f"agent {str(agent.agentNum)} scored: {str(final_score)}")
 
-    score_list[agent_num] = (agent.team.id, agent.team.outcomes)
+        agent.reward(final_score, env_name)
+        agent.reward(scores, "Scores")
+        agent.reward(final_score, "Mean")
+        agent.reward(std(scores), "Std")
+
+        score_list[agent_num] = (agent.team.id, agent.team.outcomes)
+
+    except Exception as e:
+        print(e)
 
 
 """
@@ -213,6 +218,8 @@ def run_experiment(instance=0, end_generation=500, episodes=5,
 
             # evolve the sbb/b trainer
             for gen_b in range(trainer_b.generation, sbb_gens):
+                print(f"On gen {gen}, SBB gen {gen_b}.")
+
                 agents = trainer_b.getAgents(skipTasks=[environment])
 
                 score_list = man.list(range(len(agents)))
@@ -294,6 +301,8 @@ def run_experiment(instance=0, end_generation=500, episodes=5,
         """
         Regular TPG evolution.
         """
+
+        print(f"On gen {gen}.")
 
         # do hitchiker removal when past gen 0 on certain generations
         if gen % hh_remove_gen == 0 and gen > 0:
@@ -412,7 +421,7 @@ def get_team_learner_visits(agents, env_name, frames, teams, learners):
 
     for agent in agents:
 
-        print(f"Tracing agent # {agent_i} out of {len(agents)}")
+        print(f"Tracing agent # {agent_i+1} out of {len(agents)}")
         agent_i += 1
 
         agent.configFunctionsSelf()
