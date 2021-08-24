@@ -45,51 +45,46 @@ def run_agent(args):
     frames = args[4] # frames to play for
     agent_num = args[5] # index to store results in list
 
-    try:
+    agent.configFunctionsSelf()
+    scores = []
 
-        agent.configFunctionsSelf()
-        scores = []
+    for ep in range(episodes): # episode loop
 
-        for ep in range(episodes): # episode loop
+        # create new env each time (restart doesn't work well)
+        env = gym.make(env_name)
+        state = env.reset()
+        score_ep = 0
+        agent.zeroRegisters()
 
-            # create new env each time (restart doesn't work well)
-            env = gym.make(env_name)
-            state = env.reset()
-            score_ep = 0
-            agent.zeroRegisters()
+        for i in range(frames): # frame loop
 
-            for i in range(frames): # frame loop
+            state = append(state, [2*sin(0.2*pi*i), 2*cos(0.2*pi*i),
+                            2*sin(0.1*pi*i), 2*cos(0.1*pi*i),
+                            2*sin(0.05*pi*i), 2*cos(0.05*pi*i)])
 
-                state = append(state, [2*sin(0.2*pi*i), 2*cos(0.2*pi*i),
-                                2*sin(0.1*pi*i), 2*cos(0.1*pi*i),
-                                2*sin(0.05*pi*i), 2*cos(0.05*pi*i)])
+            act = agent.act(state)[1]
 
-                act = agent.act(state)[1]
+            # feedback from env
+            state, reward, is_done, _ = env.step(act)
 
-                # feedback from env
-                state, reward, is_done, _ = env.step(act)
+            score_ep += reward # accumulate reward in score
+            if is_done:
+                break # end early if losing state
 
-                score_ep += reward # accumulate reward in score
-                if is_done:
-                    break # end early if losing state
+        scores.append(score_ep)
 
-            scores.append(score_ep)
+        env.close()
+        del env
 
-            env.close()
-            del env
+    final_score = mean(scores)
+    print(f"agent {str(agent.agentNum)} scored: {str(final_score)}")
 
-        final_score = mean(scores)
-        print(f"agent {str(agent.agentNum)} scored: {str(final_score)}")
+    agent.reward(final_score, env_name)
+    agent.reward(scores, "Scores")
+    agent.reward(final_score, "Mean")
+    agent.reward(std(scores), "Std")
 
-        agent.reward(final_score, env_name)
-        agent.reward(scores, "Scores")
-        agent.reward(final_score, "Mean")
-        agent.reward(std(scores), "Std")
-
-        score_list[agent_num] = (agent.team.id, agent.team.outcomes)
-
-    except Exception as e:
-        print(e)
+    score_list[agent_num] = (agent.team.id, agent.team.outcomes)
 
 
 """
@@ -106,8 +101,8 @@ def run_experiment(instance=0, end_generation=500, episodes=5,
         rampancy=(5,5,5), hh_remove_gen=100, fail_gens=100, sbb_gens=500,
         partial_start=False, sbb_n=20):
 
-    if __name__ == "__main__":
-        mp.set_start_method("spawn")
+    mp.set_start_method("spawn")
+    #print(1/0)
 
     # log the experiment parameters
     with open(f"params-run{instance}.txt", "w") as f:
@@ -189,13 +184,15 @@ def run_experiment(instance=0, end_generation=500, episodes=5,
     man = mp.Manager()
     pool = mp.Pool(processes=processes, maxtasksperchild=1)
 
+    trainer.b_teams = None
+
     # where the run actually happens
     for gen in range(start_gen, end_generation):
 
         """
         Run SBB/B population here.
         """
-        if trainer.no_improvements >= fail_gens or gen == 0:
+        if (trainer.no_improvements >= fail_gens or gen == 0) and sbb_gens > 0:
             trainer.last_b_gen = gen
 
             # check for existing run
@@ -304,24 +301,6 @@ def run_experiment(instance=0, end_generation=500, episodes=5,
 
         print(f"On gen {gen}.")
 
-        # do hitchiker removal when past gen 0 on certain generations
-        if gen % hh_remove_gen == 0 and gen > 0:
-
-            # obtain team learner data
-            teams, learners_visited = get_team_learner_visits(trainer.getAgents(), 
-                environment, frames, trainer.teams, trainer.learners)
-
-            # remove hitchhikers
-            learners_removed_tmp, teams_affected_tmp = trainer.removeHitchhikers(
-                teams, learners_visited)
-            learners_removed = len(learners_removed_tmp)
-            teams_affected = len(teams_affected_tmp)
-
-        else:
-            learners_removed = -1
-            teams_affected = -1
-
-
         # get all agents to execute for current generation
         agents = trainer.getAgents(skipTasks=[environment])
 
@@ -379,6 +358,22 @@ def run_experiment(instance=0, end_generation=500, episodes=5,
             except:
                 pass
 
+        # do hitchiker removal when past gen 0 on certain generations
+        if gen % hh_remove_gen == 0 and gen > 0:
+
+            # obtain team learner data
+            teams, learners_visited = get_team_learner_visits(trainer.getAgents(), 
+                environment, frames, trainer.teams, trainer.learners)
+
+            # remove hitchhikers
+            learners_removed_tmp, teams_affected_tmp = trainer.removeHitchhikers(
+                teams, learners_visited)
+            learners_removed = len(learners_removed_tmp)
+            teams_affected = len(teams_affected_tmp)
+
+        else:
+            learners_removed = -1
+            teams_affected = -1
 
         # evolve and save trainer backup / final trainer
         trainer.evolve(tasks=[environment], extraTeams=trainer.b_teams)
@@ -412,7 +407,6 @@ Traces path taken by all agents to find team learner visits, which is returned.
 '''
 def get_team_learner_visits(agents, env_name, frames, teams, learners):
 
-    env = gym.make(env_name)
     team_learner_visits_ids = {}
 
     print("Path tracing for team learner visits.")
@@ -420,6 +414,8 @@ def get_team_learner_visits(agents, env_name, frames, teams, learners):
     agent_i = 0
 
     for agent in agents:
+
+        env = gym.make(env_name)
 
         print(f"Tracing agent # {agent_i+1} out of {len(agents)}")
         agent_i += 1
@@ -455,7 +451,8 @@ def get_team_learner_visits(agents, env_name, frames, teams, learners):
             if is_done:
                 break # end early if losing state
 
-    env.close()
+        env.close()
+        del env
 
     return get_team_learner_visits_objects(team_learner_visits_ids, teams, learners)
 
