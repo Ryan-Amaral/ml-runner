@@ -275,6 +275,11 @@ def run_experiment(instance=0, end_generation=500, episodes=5,
                 trainer.gen_b = trainer_b.generation
                 trainer.saveToFile(f"trainer-run{instance}.pkl")
 
+                # break from total SBB and TPG generations
+                trainer.total_gens += 1
+                if trainer.total_gens == end_generation:
+                    return
+
             # mark pop b individuals
             for i in range(len(trainer_b.teams)):
                 trainer_b.teams[i].id2 = f"b_t_{trainer.generation}_{trainer_b.generation}"
