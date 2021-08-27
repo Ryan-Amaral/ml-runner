@@ -164,7 +164,7 @@ def run_experiment(instance=0, end_generation=500, episodes=5,
 
         start_gen = 0
         create_log(f"log-run{instance}.csv",[
-            "gen", "gen-time", "fit-min", "fit-max", "fit-avg", "gen-max",
+            "gen", "tpg-gen", "gen-time", "fit-min", "fit-max", "fit-avg", "gen-max",
             "champ-id", "champ-mean", "champ-std", "champ-teams",
             "champ-learners", "champ-bid-inst", "champ-act-inst", "champ-real-acts",
             "pop-roots", "pop-teams", "pop-learners", "hh-learners-rem",
@@ -173,7 +173,7 @@ def run_experiment(instance=0, end_generation=500, episodes=5,
         ])
 
         create_log(f"log-b-run{instance}.csv",[
-            "gen", "gen-b", "gen-time", "fit-min", "fit-max", "fit-avg", "gen-max",
+            "gen", "tpg-gen" "sbb-gen", "gen-time", "fit-min", "fit-max", "fit-avg", "gen-max",
             "champ-id", "champ-mean", "champ-std", "champ-teams", 
             "champ-learners", "champ-bid-inst", 
             "champ-act-inst", "champ-real-acts",
@@ -261,7 +261,7 @@ def run_experiment(instance=0, end_generation=500, episodes=5,
 
                 # log the current generation data
                 update_log(f"log-b-run{instance}.csv",[
-                    gen, gen_b, gen_time, round(trainer_b.fitnessStats["min"], 4), 
+                    trainer.total_gens, gen, gen_b, gen_time, round(trainer_b.fitnessStats["min"], 4), 
                     round(trainer_b.fitnessStats["max"], 4), 
                     round(trainer_b.fitnessStats["average"], 4), round(max_this_gen, 4),
                     champ_agent.team.id, round(champ_agent.team.outcomes["Mean"], 4),
@@ -392,7 +392,7 @@ def run_experiment(instance=0, end_generation=500, episodes=5,
 
         # log the current generation data
         update_log(f"log-run{instance}.csv",[
-            gen, gen_time, round(trainer.fitnessStats["min"], 4), 
+            trainer.total_gens, gen, gen_time, round(trainer.fitnessStats["min"], 4), 
             round(trainer.fitnessStats["max"], 4), 
             round(trainer.fitnessStats["average"], 4), round(max_this_gen, 4),
             champ_agent.team.id, round(champ_agent.team.outcomes["Mean"], 4),
