@@ -173,7 +173,7 @@ def run_experiment(instance=0, end_generation=500, episodes=5,
         ])
 
         create_log(f"log-b-run{instance}.csv",[
-            "gen", "tpg-gen" "sbb-gen", "gen-time", "fit-min", "fit-max", "fit-avg", "gen-max",
+            "gen", "tpg-gen", "sbb-gen", "gen-time", "fit-min", "fit-max", "fit-avg", "gen-max",
             "champ-id", "champ-mean", "champ-std", "champ-teams", 
             "champ-learners", "champ-bid-inst", 
             "champ-act-inst", "champ-real-acts",
