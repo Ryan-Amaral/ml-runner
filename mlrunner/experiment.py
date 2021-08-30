@@ -161,6 +161,7 @@ def run_experiment(instance=0, end_generation=500, episodes=5,
         trainer.last_b_gen = 0
         trainer.total_gens = 0
         trainer.gen_b = 0
+        trainer.old_max = -99999
 
         start_gen = 0
         create_log(f"log-run{instance}.csv",[
@@ -380,15 +381,24 @@ def run_experiment(instance=0, end_generation=500, episodes=5,
             learners_removed = -1
             teams_affected = -1
 
-        # evolve and save trainer backup / final trainer
-        trainer.evolve(tasks=[environment], extraTeams=trainer.b_teams)
-        trainer.saveToFile(f"trainer-run{instance}.pkl")
+        
 
         # find max fitness obtained this generation
         max_this_gen = -99999
         for s in score_list:
             if s[1]["Mean"] > max_this_gen:
                 max_this_gen = s[1]["Mean"]
+
+        # check if improvements
+        if max_this_gen > trainer.old_max:
+            trainer.old_max = max_this_gen
+            trainer.no_improvements = 0
+        else:
+            trainer.no_improvements += 1
+
+        # evolve and save trainer backup / final trainer
+        trainer.evolve(tasks=[environment], extraTeams=trainer.b_teams)
+        trainer.saveToFile(f"trainer-run{instance}.pkl")
 
         # log the current generation data
         update_log(f"log-run{instance}.csv",[
