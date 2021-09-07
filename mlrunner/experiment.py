@@ -40,10 +40,8 @@ def create_trainer(environment, init_team_pop, gap, registers,
 def run_agent(args):
     agent = args[0] # the agent
     env_name = args[1] # name of gym environment
-    score_list = args[2] # track scores of all agents
-    episodes = args[3] # number of times to repeat game
-    frames = args[4] # frames to play for
-    agent_num = args[5] # index to store results in list
+    episodes = args[2] # number of times to repeat game
+    frames = args[3] # frames to play for
 
     agent.configFunctionsSelf()
     scores = []
@@ -84,7 +82,7 @@ def run_agent(args):
     agent.reward(final_score, "Mean")
     agent.reward(std(scores), "Std")
 
-    score_list[agent_num] = (agent.team.id, agent.team.outcomes)
+    return (agent.team.id, agent.team.outcomes)
 
 
 """
@@ -181,8 +179,7 @@ def run_experiment(instance=0, end_generation=500, episodes=5,
             "pop-roots", "pop-teams", "pop-learners"
         ])
 
-    # set up multiprocessing
-    man = mp.Manager()
+    # set up multiprocessing pool
     pool = mp.Pool(processes=processes, maxtasksperchild=1)
 
     trainer.b_teams = None
@@ -220,13 +217,14 @@ def run_experiment(instance=0, end_generation=500, episodes=5,
 
                 agents = trainer_b.getAgents(skipTasks=[environment])
 
-                score_list = man.list(range(len(agents)))
+                
                 gen_start_time = time.time()
-                pool.map(run_agent,
-                    [(agent, environment, score_list, episodes, frames, i)
-                        for i, agent in enumerate(agents)])
+                score_list = pool.map(run_agent,
+                    [(agent, environment, episodes, frames)
+                        for agent in agents])
                 gen_time = int(time.time() - gen_start_time)
-                trainer_b.applyScores(score_list)
+
+                trainer_b.applyScores([item for item in score_list])
 
                 max_score = trainer_b.getEliteAgent(task=environment).team.outcomes[environment]
 
@@ -310,14 +308,11 @@ def run_experiment(instance=0, end_generation=500, episodes=5,
         # get all agents to execute for current generation
         agents = trainer.getAgents(skipTasks=[environment])
 
-        # multiprocess list to store results
-        score_list = man.list(range(len(agents)))
-
         gen_start_time = time.time()
 
-        pool.map(run_agent,
-            [(agent, environment, score_list, episodes, frames, i)
-                for i, agent in enumerate(agents)])
+        score_list = pool.map(run_agent,
+            [(agent, environment, episodes, frames)
+                for agent in agents])
 
         gen_time = int(time.time() - gen_start_time)
 
