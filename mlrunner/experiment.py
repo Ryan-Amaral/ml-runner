@@ -3,7 +3,8 @@ from mlrunner.utils import *
 import multiprocessing as mp
 from tpg.trainer import Trainer, loadTrainer
 from tpg.utils import learnerInstructionStats, actionInstructionStats, getTeams, getLearners
-import gym
+import aicrowd_gym
+import nle
 import time
 from math import sin, pi, cos
 from numpy import append, mean, std
@@ -18,9 +19,9 @@ def create_trainer(environment, init_team_pop, gap, registers,
         inst_add_prob, inst_swp_prob, inst_mut_prob, elitist, rampancy,
         ops, init_max_act_prog_size):
     # get info about the environment from temp env
-    env = gym.make(environment)
-    acts = env.action_space.shape[0]
-    inpts = env.observation_space.shape[0] + 6 # plus 6 for sin+cos inputs
+    env = aicrowd_gym.make(environment)
+    acts = env.action_space.n
+    inpts = env.observation_space.shape[0]
     del env
 
     return Trainer(actions=[acts,acts], 
@@ -90,10 +91,10 @@ def run_agent(args):
 """
 Runs the experiment from start to finish.
 """
-def run_experiment(instance=0, end_generation=500, episodes=5, 
-        environment="BipedalWalker-v3", frames=1600, processes=1,
-        trainer_checkpoint=100, init_team_pop=360, gap=0.5, registers=8,
-        init_max_team_size=2, max_team_size=4, init_max_prog_size=128,
+def run_experiment(instance=0, end_generation=10000, episodes=1, 
+        environment="NetHackChallenge-v0", frames=1600, processes=1,
+        trainer_checkpoint=1000, init_team_pop=360, gap=0.5, registers=8,
+        init_max_team_size=2, max_team_size=5, init_max_prog_size=128,
         learner_del_prob=0.3, learner_add_prob=0.3, learner_mut_prob=0.7,
         prog_mut_prob=0.5, act_mut_prob=0.7, atomic_act_prob=0.8,
         init_max_act_prog_size=128, inst_del_prob=0.5, inst_add_prob=0.5,
