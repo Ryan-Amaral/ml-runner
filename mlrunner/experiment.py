@@ -30,7 +30,7 @@ def get_linear_obs(obs):
     new_obs.extend(obs["tty_cursor"])
     new_obs.extend(obs["misc"])
 
-    return new_obs
+    return array(new_obs)
 
 
 """
@@ -86,7 +86,8 @@ def run_agent(args):
 
             # get action from binary register values.
             act0 = array(agent.act(state)[1]) >= 0.5
-            act = 64*act0[0] + 32*act0[1] + 16*act0[2] + 8*act0[3] + 4*act0[4] + 2*act0[5] + act0[6]
+            act = int((64*act0[0] + 32*act0[1] + 16*act0[2] + 8*act0[3] + 
+                    4*act0[4] + 2*act0[5] + act0[6]) % 113)
 
             # feedback from env
             state, reward, is_done, _ = env.step(act)
@@ -232,7 +233,7 @@ def run_experiment(instance=0, end_generation=10000, episodes=3,
                     learner_del_prob, learner_add_prob, learner_mut_prob, prog_mut_prob,
                     act_mut_prob, 1.0, inst_del_prob,
                     inst_add_prob, inst_swp_prob, inst_mut_prob, elitist, rampancy,
-                    ops, init_max_act_prog_size)
+                    ops, init_max_act_prog_size, mem_type)
 
                 trainer_b.no_improvements = 0
                 trainer_b.old_max = -99999
