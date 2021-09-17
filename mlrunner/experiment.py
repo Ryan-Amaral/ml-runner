@@ -5,8 +5,33 @@ from tpg.trainer import Trainer, loadTrainer
 from tpg.utils import learnerInstructionStats, actionInstructionStats, getTeams, getLearners
 import aicrowd_gym
 import nle
+import gym
 import time
-from numpy import append, mean, std
+from numpy import append, mean, std, array
+
+"""
+Convert the dictionary observations to a single numeric list.
+"""
+def get_linear_obs(obs):
+    new_obs = []
+
+    new_obs.extend(obs["glyphs"].flatten())
+    new_obs.extend(obs["chars"].flatten())
+    new_obs.extend(obs["colors"].flatten())
+    new_obs.extend(obs["specials"].flatten())
+    new_obs.extend(obs["blstats"])
+    new_obs.extend(obs["message"])
+    new_obs.extend(obs["inv_glyphs"])
+    new_obs.extend(obs["inv_strs"].flatten())
+    new_obs.extend(obs["inv_letters"])
+    new_obs.extend(obs["inv_oclasses"])
+    new_obs.extend(obs["tty_chars"].flatten())
+    new_obs.extend(obs["tty_colors"].flatten())
+    new_obs.extend(obs["tty_cursor"])
+    new_obs.extend(obs["misc"])
+
+    return new_obs
+
 
 """
 Creates a new trainer for this run.
@@ -19,11 +44,11 @@ def create_trainer(environment, init_team_pop, gap, registers,
         ops, init_max_act_prog_size):
     # get info about the environment from temp env
     env = aicrowd_gym.make(environment)
-    acts = env.action_space.n
-    inpts = env.observation_space.shape[0]
+    state = env.reset()
+    inpts = len(get_linear_obs(state))
     del env
 
-    return Trainer(actions=[acts,acts], 
+    return Trainer(actions=[7,7], 
         teamPopSize=init_team_pop, gap=gap, nRegisters=registers,
         initMaxTeamSize=init_max_team_size, maxTeamSize=max_team_size,
         initMaxProgSize=init_max_prog_size, pLrnDel=learner_del_prob,
@@ -35,7 +60,7 @@ def create_trainer(environment, init_team_pop, gap, registers,
         pInstMut=inst_swp_prob, pInstSwp=inst_mut_prob,
         doElites=elitist, rampancy=rampancy,
         operationSet=ops, initMaxActProgSize=init_max_act_prog_size,
-        nActRegisters=acts+4)
+        nActRegisters=registers)
 
 def run_agent(args):
     agent = args[0] # the agent
@@ -56,7 +81,11 @@ def run_agent(args):
 
         for i in range(frames): # frame loop
 
-            act = agent.act(state)[1]
+            state = get_linear_obs(state)
+
+            # get action from binary register values.
+            act0 = array(agent.act(state)[1]) >= 0.5
+            act = 64*act0[0] + 32*act0[1] + 16*act0[2] + 8*act0[3] + 4*act0[4] + 2*act0[5] + act0[6]
 
             # feedback from env
             state, reward, is_done, _ = env.step(act)
@@ -85,14 +114,14 @@ def run_agent(args):
 Runs the experiment from start to finish.
 """
 def run_experiment(instance=0, end_generation=10000, episodes=1, 
-        environment="NetHackChallenge-v0", frames=1600, processes=1,
-        trainer_checkpoint=1000, init_team_pop=360, gap=0.5, registers=8,
-        init_max_team_size=2, max_team_size=5, init_max_prog_size=128,
+        environment="NetHackChallenge-v0", frames=99999, processes=1,
+        trainer_checkpoint=1000, init_team_pop=360, gap=0.5, registers=10,
+        init_max_team_size=2, max_team_size=5, init_max_prog_size=256,
         learner_del_prob=0.3, learner_add_prob=0.3, learner_mut_prob=0.7,
-        prog_mut_prob=0.5, act_mut_prob=0.7, atomic_act_prob=0.8,
-        init_max_act_prog_size=128, inst_del_prob=0.5, inst_add_prob=0.5,
+        prog_mut_prob=0.5, act_mut_prob=0.7, atomic_act_prob=0.7,
+        init_max_act_prog_size=256, inst_del_prob=0.5, inst_add_prob=0.5,
         inst_swp_prob=0.5, inst_mut_prob=0.5, elitist=True, ops="robo",
-        rampancy=(5,5,5), hh_remove_gen=100, fail_gens=100, sbb_gens=500,
+        rampancy=(5,5,5), hh_remove_gen=100, fail_gens=100, sbb_gens=1000,
         partial_start=False, sbb_n=20):
 
     mp.set_start_method("spawn")
