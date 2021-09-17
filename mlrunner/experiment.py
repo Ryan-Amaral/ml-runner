@@ -46,6 +46,7 @@ def create_trainer(environment, init_team_pop, gap, registers,
     env = aicrowd_gym.make(environment)
     state = env.reset()
     inpts = len(get_linear_obs(state))
+    env.close()
     del env
 
     return Trainer(actions=[7,7], 
@@ -242,9 +243,12 @@ def run_experiment(instance=0, end_generation=10000, episodes=1,
 
                 agents = trainer_b.getAgents(skipTasks=[environment])
                 gen_start_time = time.time()
-                score_list = pool.map(run_agent,
-                    [(agent, environment, episodes, frames)
-                        for agent in agents])
+                #score_list = pool.map(run_agent,
+                #    [(agent, environment, episodes, frames)
+                #        for agent in agents])
+                score_list = [run_agent((agent, environment, episodes, frames)) 
+                                        for agent in agents]
+                        
                 gen_time = int(time.time() - gen_start_time)
                 trainer_b.applyScores(score_list)
 
@@ -332,9 +336,11 @@ def run_experiment(instance=0, end_generation=10000, episodes=1,
 
         gen_start_time = time.time()
 
-        score_list = pool.map(run_agent,
-            [(agent, environment, episodes, frames)
-                for agent in agents])
+        #score_list = pool.map(run_agent,
+        #    [(agent, environment, episodes, frames)
+        #        for agent in agents])
+        score_list = [run_agent((agent, environment, episodes, frames)) 
+                                        for agent in agents]
 
         gen_time = int(time.time() - gen_start_time)
 
