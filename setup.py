@@ -5,9 +5,9 @@ setup(
     version='0.1',
     packages=['mlrunner'],
     install_requires=["PyTPG@git+https://github.com/Ryan-Amaral/PyTPG.git@v0.9.4.1#egg=PyTPG",
-                      "numpy",
+                      "numpy==1.20.0",
                       "gym",
-                      "box2d-py"], # enter requirements here
+                      "nle"], # enter requirements here
     license='GPLv3.0',
     description='Machine learner experiment runner framework.',
     long_description=open('README.md').read(),
