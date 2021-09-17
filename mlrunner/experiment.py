@@ -41,7 +41,7 @@ def create_trainer(environment, init_team_pop, gap, registers,
         learner_del_prob, learner_add_prob, learner_mut_prob, prog_mut_prob,
         act_mut_prob, atomic_act_prob, inst_del_prob,
         inst_add_prob, inst_swp_prob, inst_mut_prob, elitist, rampancy,
-        ops, init_max_act_prog_size):
+        ops, init_max_act_prog_size, mem_type):
     # get info about the environment from temp env
     env = aicrowd_gym.make(environment)
     state = env.reset()
@@ -61,7 +61,7 @@ def create_trainer(environment, init_team_pop, gap, registers,
         pInstMut=inst_swp_prob, pInstSwp=inst_mut_prob,
         doElites=elitist, rampancy=rampancy,
         operationSet=ops, initMaxActProgSize=init_max_act_prog_size,
-        nActRegisters=registers)
+        nActRegisters=registers, memType=mem_type)
 
 def run_agent(args):
     agent = args[0] # the agent
@@ -123,7 +123,7 @@ def run_experiment(instance=0, end_generation=10000, episodes=3,
         init_max_act_prog_size=256, inst_del_prob=0.5, inst_add_prob=0.5,
         inst_swp_prob=0.5, inst_mut_prob=0.5, elitist=True, ops="robo",
         rampancy=(5,5,5), hh_remove_gen=100, fail_gens=100, sbb_gens=1000,
-        partial_start=False, sbb_n=20):
+        partial_start=False, sbb_n=20, mem_type=None):
 
     mp.set_start_method("spawn")
     #print(1/0)
@@ -161,6 +161,7 @@ def run_experiment(instance=0, end_generation=10000, episodes=3,
         f.write(f"sbb_gens: {str(sbb_gens)}\n")
         f.write(f"partial_start: {str(partial_start)}\n")
         f.write(f"sbb_n: {str(sbb_n)}\n")
+        f.write(f"mem_type: {str(mem_type)}\n")
 
     # continue old run if applicable
     try:
@@ -178,7 +179,7 @@ def run_experiment(instance=0, end_generation=10000, episodes=3,
         learner_del_prob, learner_add_prob, learner_mut_prob, prog_mut_prob,
         act_mut_prob, atomic_act_prob, inst_del_prob,
         inst_add_prob, inst_swp_prob, inst_mut_prob, elitist, rampancy,
-        ops, init_max_act_prog_size)
+        ops, init_max_act_prog_size, mem_type)
 
         trainer.no_improvements = 0
         trainer.cur_max = -99999
