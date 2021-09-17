@@ -114,7 +114,7 @@ def run_agent(args):
 """
 Runs the experiment from start to finish.
 """
-def run_experiment(instance=0, end_generation=10000, episodes=1, 
+def run_experiment(instance=0, end_generation=10000, episodes=3, 
         environment="NetHackChallenge-v0", frames=99999, processes=1,
         trainer_checkpoint=1000, init_team_pop=360, gap=0.5, registers=10,
         init_max_team_size=2, max_team_size=5, init_max_prog_size=256,
