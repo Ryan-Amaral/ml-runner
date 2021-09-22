@@ -126,7 +126,7 @@ def run_experiment(instance=0, end_generation=10000, episodes=3,
         rampancy=(5,5,5), hh_remove_gen=100, fail_gens=100, sbb_gens=1000,
         partial_start=False, sbb_n=20, mem_type=None):
 
-    mp.set_start_method("spawn")
+    #mp.set_start_method("spawn")
     #print(1/0)
 
     # log the experiment parameters
@@ -245,11 +245,11 @@ def run_experiment(instance=0, end_generation=10000, episodes=3,
 
                 agents = trainer_b.getAgents(skipTasks=[environment])
                 gen_start_time = time.time()
-                #score_list = pool.map(run_agent,
-                #    [(agent, environment, episodes, frames)
-                #        for agent in agents])
-                score_list = [run_agent((agent, environment, episodes, frames)) 
-                                        for agent in agents]
+                score_list = pool.map(run_agent,
+                    [(agent, environment, episodes, frames)
+                        for agent in agents])
+                #score_list = [run_agent((agent, environment, episodes, frames)) 
+                #                        for agent in agents]
                         
                 gen_time = int(time.time() - gen_start_time)
                 trainer_b.applyScores(score_list)
@@ -338,11 +338,11 @@ def run_experiment(instance=0, end_generation=10000, episodes=3,
 
         gen_start_time = time.time()
 
-        #score_list = pool.map(run_agent,
-        #    [(agent, environment, episodes, frames)
-        #        for agent in agents])
-        score_list = [run_agent((agent, environment, episodes, frames)) 
-                                        for agent in agents]
+        score_list = pool.map(run_agent,
+            [(agent, environment, episodes, frames)
+                for agent in agents])
+        #score_list = [run_agent((agent, environment, episodes, frames)) 
+        #                                for agent in agents]
 
         gen_time = int(time.time() - gen_start_time)
 
