@@ -6,8 +6,7 @@ setup(
     packages=['mlrunner'],
     install_requires=["PyTPG@git+https://github.com/Ryan-Amaral/PyTPG.git@v0.9.4.2#egg=PyTPG",
                       "numpy",
-                      "gym",
-                      "box2d-py"], # enter requirements here
+                      "gym"], # have to manually install pybullet gym from git repo
     license='GPLv3.0',
     description='Machine learner experiment runner framework.',
     long_description=open('README.md').read(),

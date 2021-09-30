@@ -4,6 +4,7 @@ import multiprocessing as mp
 from tpg.trainer import Trainer, loadTrainer
 from tpg.utils import actionInstructionStats, getTeams, getLearners
 import gym
+import pybulletgym
 import time
 from math import sin, pi, cos
 from numpy import append, mean, std, clip
@@ -32,18 +33,18 @@ def create_trainer(environment, init_team_pop, gap, inst_del_prob,
 def run_agent(args):
     agent = args[0] # the agent
     env_name = args[1] # name of gym environment
-    score_list = args[2] # track scores of all agents
-    episodes = args[3] # number of times to repeat game
-    frames = args[4] # frames to play for
-    agent_num = args[5] # index to store results in list
+    episodes = args[2] # number of times to repeat game
+    frames = args[3] # frames to play for
+    agent_num = args[4] # index to store results in list
 
     agent.configFunctionsSelf()
     scores = []
 
+
+    env = gym.make(env_name)
+
     for ep in range(episodes): # episode loop
 
-        # create new env each time (restart doesn't work well)
-        env = gym.make(env_name)
         state = env.reset()
         score_ep = 0
         agent.zeroRegisters()
@@ -65,8 +66,8 @@ def run_agent(args):
 
         scores.append(score_ep)
 
-        env.close()
-        del env
+    env.close()
+    del env
 
     final_score = mean(scores)
     print(f"agent {str(agent.agentNum)} scored: {str(final_score)}")
@@ -76,14 +77,14 @@ def run_agent(args):
     agent.reward(final_score, "Mean")
     agent.reward(std(scores), "Std")
 
-    score_list[agent_num] = (agent.team.id, agent.team.outcomes)
+    return (agent.team.id, agent.team.outcomes)
 
 
 """
 Runs the experiment from start to finish.
 """
-def run_experiment(instance=0, end_generation=500, episodes=5, 
-        environment="BipedalWalker-v3", frames=1600, processes=1,
+def run_experiment(instance=0, end_generation=1000, episodes=5, 
+        environment="ReacherPyBulletEnv-v0", frames=99999, processes=1,
         trainer_checkpoint=100, init_team_pop=360, gap=0.5,
         init_max_act_prog_size=128, inst_del_prob=0.5, inst_add_prob=0.5,
         inst_swp_prob=0.5, inst_mut_prob=0.5, elitist=True, ops="robo",
@@ -141,13 +142,10 @@ def run_experiment(instance=0, end_generation=500, episodes=5,
         # get all agents to execute for current generation
         agents = trainer.getAgents(skipTasks=[environment])
 
-        # multiprocess list to store results
-        score_list = man.list(range(len(agents)))
-
         gen_start_time = time.time()
 
-        pool.map(run_agent,
-            [(agent, environment, score_list, episodes, 
+        score_list = pool.map(run_agent,
+            [(agent, environment, episodes, 
                     frames, i)
                 for i, agent in enumerate(agents)])
 

@@ -1,6 +1,6 @@
 # ml-runner
 
-## 2d-Bipedal-Walker-v3 experiments with GP
+## PyBullet Gym experiments with GP
 
 ### What is it?
 A general framework/codebase for running machine learning experiments. 
