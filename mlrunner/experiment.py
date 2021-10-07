@@ -7,30 +7,75 @@ import aicrowd_gym
 import nle
 import gym
 import time
-from numpy import append, mean, std, array
+from numpy import append, mean, std, array, where, zeros
+
+def spiral_dir(corner_len, cur_len, dir):
+
+    # move dir clockwise if at end of corner segment
+    if cur_len == corner_len:
+        dir = (dir+1)%4
+    
+    return dir
+
+def move(pos, dir):
+    if dir == 0:
+        pos[1] += 1
+    elif dir == 1:
+        pos[0] += 1
+    elif dir == 2:
+        pos[1] -= 1
+    elif dir == 3:
+        pos[0] -= 1
+
+    return pos
 
 """
-Convert the dictionary observations to a single numeric list.
+Get observation as spiral around player, glyphs only.
+direction: 0=right, 1=down, 2=left, 3=up.
 """
-def get_linear_obs(obs):
-    new_obs = []
+def get_linear_obs(obs, dir=0):
+    # create new obs representing spiral of specified length
+    sz_spiral = 120
+    new_obs = zeros(sz_spiral)
 
-    new_obs.extend(obs["glyphs"].flatten())
-    new_obs.extend(obs["chars"].flatten())
-    new_obs.extend(obs["colors"].flatten())
-    new_obs.extend(obs["specials"].flatten())
-    new_obs.extend(obs["blstats"])
-    new_obs.extend(obs["message"])
-    new_obs.extend(obs["inv_glyphs"])
-    new_obs.extend(obs["inv_strs"].flatten())
-    new_obs.extend(obs["inv_letters"])
-    new_obs.extend(obs["inv_oclasses"])
-    new_obs.extend(obs["tty_chars"].flatten())
-    new_obs.extend(obs["tty_colors"].flatten())
-    new_obs.extend(obs["tty_cursor"])
-    new_obs.extend(obs["misc"])
+    # get where player is
+    me = where(obs["chars"] == 64)
+    pos = (me[0][0], me[1][0])
 
-    return array(new_obs)
+    corner_len = 1
+    cur_len = 0
+    corner_type = 0
+
+    # fill in glyphs in spiral
+    for i in range(sz_spiral):
+
+        # update dir
+        # get new direction
+        old_dir = dir
+        dir = spiral_dir(corner_len, cur_len, dir)
+
+        # update spiral direction components
+        if dir == old_dir:
+            # still on same segment of corner
+            cur_len += 1
+        elif corner_type == 0:
+            # on same corner but new segment
+            cur_len = 1
+            corner_type = 1
+        elif corner_type == 1:
+            # on to new corner
+            cur_len = 1
+            corner_len += 1
+            corner_type = 0
+        
+
+        # update pos
+        pos = move(pos, dir)
+
+        # store glyph
+        new_obs[i] = obs["glyphs"][pos[0]][pos[1]]
+
+    return new_obs
 
 
 """

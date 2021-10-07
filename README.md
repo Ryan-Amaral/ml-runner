@@ -1,6 +1,6 @@
 # ml-runner
 
-## Bipedal-Walker-v3 experiments with SBB or TPG or Both
+## Nethack experiments with SBB or TPG or Both
 
 ### What is it?
 A general framework/codebase for running machine learning experiments. 
