@@ -8,7 +8,9 @@ import nle
 import gym
 import time
 from numpy import append, mean, std, array, where, zeros
+from numba import njit
 
+@njit
 def spiral_dir(corner_len, cur_len, dir):
 
     # move dir clockwise if at end of corner segment
@@ -17,6 +19,7 @@ def spiral_dir(corner_len, cur_len, dir):
     
     return dir
 
+@njit
 def move(pos, dir):
     if dir == 0:
         pos[1] += 1
@@ -33,13 +36,14 @@ def move(pos, dir):
 Get observation as spiral around player, glyphs only.
 direction: 0=right, 1=down, 2=left, 3=up.
 """
-def get_spiral_obs(obs, dir=0):
+@njit
+def get_spiral_obs(chars, glyphs, dir=0):
     # create new obs representing spiral of specified length
     sz_spiral = 120
     new_obs = zeros(sz_spiral)
 
     # get where player is
-    me = where(obs["chars"] == 64)
+    me = where(chars == 64)
     pos = [me[0][0], me[1][0]]
 
     corner_len = 1
@@ -76,7 +80,7 @@ def get_spiral_obs(obs, dir=0):
         if pos[0] < 0 or pos[0] > 20 or pos[1] < 0 or pos[1] > 78:
             new_obs[i] = -1
         else:
-            new_obs[i] = obs["glyphs"][pos[0]][pos[1]]
+            new_obs[i] = glyphs[pos[0]][pos[1]]
 
     return new_obs
 
@@ -93,7 +97,7 @@ def create_trainer(environment, init_team_pop, gap, registers,
     # get info about the environment from temp env
     env = aicrowd_gym.make(environment)
     state = env.reset()
-    inpts = len(get_spiral_obs(state))
+    inpts = len(get_spiral_obs(state["chars"], state["glyphs"]))
     env.close()
     del env
 
@@ -120,6 +124,8 @@ def run_agent(args):
     agent.configFunctionsSelf()
     scores = []
 
+    dir = 0
+
     for ep in range(episodes): # episode loop
 
         # create new env each time (restart doesn't work well)
@@ -130,7 +136,7 @@ def run_agent(args):
 
         for i in range(frames): # frame loop
 
-            state = get_spiral_obs(state)
+            state = get_spiral_obs(state["chars"], state["glyphs"], dir)
 
             # get action from binary register values.
             act0 = (array(agent.act(state)[1]) >= 0.5).astype(int)
@@ -143,22 +149,30 @@ def run_agent(args):
                 act = 16
             elif act01[0] == -1 and act01[1] == -1:
                 act = 6
+                dir = 1
             elif act01[0] == -1 and act01[1] == 0:
                 act = 2
+                dir = 1
             elif act01[0] == -1 and act01[1] == 1:
                 act = 5
+                dir = 1
             elif act01[0] == 0 and act01[1] == -1:
                 act = 3
+                dir = 2
             elif act01[0] == 0 and act01[1] == 0:
                 act = 18
             elif act01[0] == 0 and act01[1] == 1:
                 act = 1
+                dir = 0
             elif act01[0] == 1 and act01[1] == -1:
                 act = 7
+                dir = 3
             elif act01[0] == 1 and act01[1] == 0:
                 act = 0
+                dir = 3
             elif act01[0] == 1 and act01[1] == 1:
                 act = 4
+                dir = 3
 
             # feedback from env
             state, reward, is_done, _ = env.step(act)
