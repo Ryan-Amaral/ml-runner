@@ -40,7 +40,7 @@ def get_spiral_obs(obs, dir=0):
 
     # get where player is
     me = where(obs["chars"] == 64)
-    pos = (me[0][0], me[1][0])
+    pos = [me[0][0], me[1][0]]
 
     corner_len = 1
     cur_len = 0
@@ -133,8 +133,8 @@ def run_agent(args):
             state = get_spiral_obs(state)
 
             # get action from binary register values.
-            act0 = array(agent.act(state)[1]) >= 0.5
-            act01 = act0 - (array(agent.act(state)[1]) <= -0.5)
+            act0 = (array(agent.act(state)[1]) >= 0.5).astype(int)
+            act01 = act0 - (array(agent.act(state)[1]) <= -0.5).astype(int)
 
             # select direction of movement
             if act01[2] == -1:
