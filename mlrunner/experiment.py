@@ -139,8 +139,9 @@ def run_agent(args):
             state = get_spiral_obs(state["chars"], state["glyphs"], dir)
 
             # get action from binary register values.
-            act0 = (array(agent.act(state)[1]) >= 0.5).astype(int)
-            act01 = act0 - (array(agent.act(state)[1]) <= -0.5).astype(int)
+            act00 = array(agent.act(state)[1])
+            act0 = (act00 >= 0.5).astype(int)
+            act01 = act0 - (act00 <= -0.5).astype(int)
 
             # select direction of movement
             if act01[2] == -1:
