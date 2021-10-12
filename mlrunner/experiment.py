@@ -33,7 +33,7 @@ def move(pos, dir):
 Get observation as spiral around player, glyphs only.
 direction: 0=right, 1=down, 2=left, 3=up.
 """
-def get_linear_obs(obs, dir=0):
+def get_spiral_obs(obs, dir=0):
     # create new obs representing spiral of specified length
     sz_spiral = 120
     new_obs = zeros(sz_spiral)
@@ -72,8 +72,11 @@ def get_linear_obs(obs, dir=0):
         # update pos
         pos = move(pos, dir)
 
-        # store glyph
-        new_obs[i] = obs["glyphs"][pos[0]][pos[1]]
+        # store glyph (-1 if out of bounds)
+        if pos[0] < 0 or pos[0] > 20 or pos[1] < 0 or pos[1] > 78:
+            new_obs[i] = -1
+        else:
+            new_obs[i] = obs["glyphs"][pos[0]][pos[1]]
 
     return new_obs
 
@@ -90,7 +93,7 @@ def create_trainer(environment, init_team_pop, gap, registers,
     # get info about the environment from temp env
     env = aicrowd_gym.make(environment)
     state = env.reset()
-    inpts = len(get_linear_obs(state))
+    inpts = len(get_spiral_obs(state))
     env.close()
     del env
 
@@ -127,12 +130,35 @@ def run_agent(args):
 
         for i in range(frames): # frame loop
 
-            state = get_linear_obs(state)
+            state = get_spiral_obs(state)
 
             # get action from binary register values.
             act0 = array(agent.act(state)[1]) >= 0.5
-            act = int((64*act0[0] + 32*act0[1] + 16*act0[2] + 8*act0[3] + 
-                    4*act0[4] + 2*act0[5] + act0[6]) % 113)
+            act01 = act0 - (array(agent.act(state)[1]) <= -0.5)
+
+            # select direction of movement
+            if act01[2] == -1:
+                act = 17
+            elif act01[2] == 1:
+                act = 16
+            elif act01[0] == -1 and act01[1] == -1:
+                act = 6
+            elif act01[0] == -1 and act01[1] == 0:
+                act = 2
+            elif act01[0] == -1 and act01[1] == 1:
+                act = 5
+            elif act01[0] == 0 and act01[1] == -1:
+                act = 3
+            elif act01[0] == 0 and act01[1] == 0:
+                act = 18
+            elif act01[0] == 0 and act01[1] == 1:
+                act = 1
+            elif act01[0] == 1 and act01[1] == -1:
+                act = 7
+            elif act01[0] == 1 and act01[1] == 0:
+                act = 0
+            elif act01[0] == 1 and act01[1] == 1:
+                act = 4
 
             # feedback from env
             state, reward, is_done, _ = env.step(act)
@@ -160,7 +186,7 @@ def run_agent(args):
 """
 Runs the experiment from start to finish.
 """
-def run_experiment(instance=0, end_generation=10000, episodes=3, 
+def run_experiment(instance=0, end_generation=10000, episodes=2, 
         environment="NetHackChallenge-v0", frames=99999, processes=1,
         trainer_checkpoint=1000, init_team_pop=360, gap=0.5, registers=10,
         init_max_team_size=2, max_team_size=5, init_max_prog_size=256,
@@ -168,7 +194,7 @@ def run_experiment(instance=0, end_generation=10000, episodes=3,
         prog_mut_prob=0.5, act_mut_prob=0.7, atomic_act_prob=0.7,
         init_max_act_prog_size=256, inst_del_prob=0.5, inst_add_prob=0.5,
         inst_swp_prob=0.5, inst_mut_prob=0.5, elitist=True, ops="robo",
-        rampancy=(5,5,5), hh_remove_gen=100, fail_gens=100, sbb_gens=1000,
+        rampancy=(5,5,5), hh_remove_gen=100, fail_gens=100, sbb_gens=500,
         partial_start=False, sbb_n=20, mem_type=None):
 
     #mp.set_start_method("spawn")
