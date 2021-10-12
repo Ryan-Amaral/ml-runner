@@ -551,15 +551,50 @@ def get_team_learner_visits(agents, env_name, frames, teams, learners):
         state = env.reset()
         score = 0
 
+        dir = 0
+
         for i in range(frames):
 
-            state = append(state, [2*sin(0.2*pi*i), 2*cos(0.2*pi*i),
-                                2*sin(0.1*pi*i), 2*cos(0.1*pi*i),
-                                2*sin(0.05*pi*i), 2*cos(0.05*pi*i)])
-
             trace = {}
-        
-            act = agent.act(state, path_trace=trace)[1]
+
+            state = get_spiral_obs(state["chars"], state["glyphs"], dir)
+
+            # get action from binary register values.
+            act00 = array(agent.act(state, path_trace=trace)[1])
+            act0 = (act00 >= 0.5).astype(int)
+            act01 = act0 - (act00 <= -0.5).astype(int)
+
+            # select direction of movement
+            if act01[2] == -1:
+                act = 17
+            elif act01[2] == 1:
+                act = 16
+            elif act01[0] == -1 and act01[1] == -1:
+                act = 6
+                dir = 1
+            elif act01[0] == -1 and act01[1] == 0:
+                act = 2
+                dir = 1
+            elif act01[0] == -1 and act01[1] == 1:
+                act = 5
+                dir = 1
+            elif act01[0] == 0 and act01[1] == -1:
+                act = 3
+                dir = 2
+            elif act01[0] == 0 and act01[1] == 0:
+                act = 18
+            elif act01[0] == 0 and act01[1] == 1:
+                act = 1
+                dir = 0
+            elif act01[0] == 1 and act01[1] == -1:
+                act = 7
+                dir = 3
+            elif act01[0] == 1 and act01[1] == 0:
+                act = 0
+                dir = 3
+            elif act01[0] == 1 and act01[1] == 1:
+                act = 4
+                dir = 3
 
             # feedback from env
             state, _, is_done, _ = env.step(act)
